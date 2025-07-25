@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  angular-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: angular-container
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - app-network
+
+  # Opcional: Agregar un proxy reverso con SSL
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "4430:443"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - angular-app
+    networks:
+      - app-network
+    profiles:
+      - ssl
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  ssl-certs:
+    driver: local
