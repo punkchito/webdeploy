@@ -1,4 +1,4 @@
-# Dockerfile para Angular 16 con Ubuntu 22
+# Dockerfile para Angular 18 con Ubuntu 22
 FROM ubuntu:22.04 as build
 
 # Evitar prompts interactivos durante la instalación
@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar Node.js 18 (recomendado para Angular 16)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+# Instalar Node.js 20 (requerido para Angular 18)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
 # Verificar versiones
@@ -23,17 +23,25 @@ RUN node --version && npm --version
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
+# Copiar archivos de configuración
 COPY package*.json ./
+COPY .npmrc* ./
+
+# Configurar npm para Angular 18
+RUN npm config set legacy-peer-deps true && \
+    npm config set audit-level moderate && \
+    npm config set fund false && \
+    npm cache clean --force && \
+    rm -rf package-lock.json node_modules
 
 # Instalar dependencias
-RUN npm ci --only=production
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copiar código fuente
 COPY . .
 
 # Construir la aplicación para producción
-RUN npm run build --prod
+RUN npm run build
 
 # Etapa de producción con nginx
 FROM ubuntu:22.04
@@ -44,7 +52,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar archivos construidos desde la etapa de build
-COPY --from=build /app/dist/* /var/www/html/
+COPY --from=build /app/dist/proyecto /var/www/html/
 
 # Copiar configuración personalizada de nginx
 COPY nginx.conf /etc/nginx/sites-available/default
