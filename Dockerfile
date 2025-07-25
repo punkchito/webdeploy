@@ -1,64 +1,51 @@
-# Dockerfile para Angular 18 con Ubuntu 22
-FROM ubuntu:22.04 as build
+# Dockerfile simplificado para debugging
+FROM node:20-alpine as build
 
-# Evitar prompts interactivos durante la instalación
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
-    gnupg \
-    lsb-release \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Instalar Node.js 20 (requerido para Angular 18)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
-
-# Verificar versiones
-RUN node --version && npm --version
-
-# Establecer directorio de trabajo
 WORKDIR /app
 
 # Copiar archivos de configuración
 COPY package*.json ./
 COPY .npmrc* ./
 
-# Configurar npm para Angular 18
-RUN npm config set legacy-peer-deps true && \
-    npm config set audit-level moderate && \
-    npm config set fund false && \
-    npm cache clean --force && \
-    rm -rf package-lock.json node_modules
-
 # Instalar dependencias
-RUN npm install --legacy-peer-deps --no-audit --no-fund
+RUN npm config set legacy-peer-deps true && \
+    npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copiar código fuente
 COPY . .
 
-# Construir la aplicación para producción
+# Construir aplicación
 RUN npm run build
 
-# Etapa de producción con nginx
-FROM ubuntu:22.04
+# Mostrar contenido del build para debugging
+RUN echo "=== CONTENIDO DEL BUILD ===" && \
+    find dist -type f -name "*.html" && \
+    ls -la dist/
 
-# Instalar nginx
-RUN apt-get update && apt-get install -y \
-    nginx \
-    && rm -rf /var/lib/apt/lists/*
+# Usar nginx oficial
+FROM nginx:alpine
 
-# Copiar archivos construidos desde la etapa de build
-COPY --from=build /app/dist/proyecto /var/www/html/
+# Copiar todos los archivos del build
+COPY --from=build /app/dist/ /usr/share/nginx/html/
 
-# Copiar configuración personalizada de nginx
-COPY nginx.conf /etc/nginx/sites-available/default
+# Crear configuración simple
+RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
+    echo '    listen 80;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    index index.html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    location / {' >> /etc/nginx/conf.d/default.conf && \
+    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    }' >> /etc/nginx/conf.d/default.conf && \
+    echo '}' >> /etc/nginx/conf.d/default.conf
 
-# Exponer puerto 80
+# Verificar archivos copiados
+RUN echo "=== ARCHIVOS EN NGINX ===" && \
+    ls -la /usr/share/nginx/html/ && \
+    find /usr/share/nginx/html -name "*.html" -type f
+
+# Verificar configuración
+RUN nginx -t
+
 EXPOSE 80
 
-# Iniciar nginx
 CMD ["nginx", "-g", "daemon off;"]
