@@ -116,11 +116,11 @@ jobs:
           # Descargar nueva imagen
           docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           
-          # Ejecutar nuevo contenedor
+          # Ejecutar nuevo contenedor con puerto 8080
           docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --restart unless-stopped \
-            -p 80:80 \
+            -p 8080:80 \
             ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           
           # Limpiar imágenes no utilizadas
@@ -137,6 +137,6 @@ jobs:
           # Verificar que el contenedor esté ejecutándose
           docker ps | grep ${{ env.CONTAINER_NAME }}
           
-          # Verificar que la aplicación responda
+          # Verificar que la aplicación responda en puerto 8080
           sleep 10
-          curl -f http://localhost || exit 1
+          curl -f http://localhost:8080 || exit 1

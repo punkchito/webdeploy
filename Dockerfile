@@ -1,4 +1,4 @@
-# Dockerfile simplificado para debugging
+# Dockerfile para Angular con configuración corregida
 FROM node:20-alpine as build
 
 WORKDIR /app
@@ -25,26 +25,29 @@ RUN echo "=== CONTENIDO DEL BUILD ===" && \
 # Usar nginx oficial
 FROM nginx:alpine
 
-# Copiar todos los archivos del build
-COPY --from=build /app/dist/ /usr/share/nginx/html/
+# Eliminar configuración por defecto
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Crear configuración simple
-RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
-    echo '    listen 80;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    index index.html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    location / {' >> /etc/nginx/conf.d/default.conf && \
-    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    }' >> /etc/nginx/conf.d/default.conf && \
-    echo '}' >> /etc/nginx/conf.d/default.conf
+# Copiar configuración personalizada de nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Crear directorio correcto según nginx.conf
+RUN mkdir -p /var/www/html
+
+# Copiar todos los archivos del build a la ubicación correcta
+COPY --from=build /app/dist/ /var/www/html/
 
 # Verificar archivos copiados
-RUN echo "=== ARCHIVOS EN NGINX ===" && \
-    ls -la /usr/share/nginx/html/ && \
-    find /usr/share/nginx/html -name "*.html" -type f
+RUN echo "=== ARCHIVOS EN /var/www/html ===" && \
+    ls -la /var/www/html/ && \
+    find /var/www/html -name "*.html" -type f
 
-# Verificar configuración
+# Verificar configuración de nginx
 RUN nginx -t
+
+# Dar permisos correctos
+RUN chown -R nginx:nginx /var/www/html && \
+    chmod -R 755 /var/www/html
 
 EXPOSE 80
 
