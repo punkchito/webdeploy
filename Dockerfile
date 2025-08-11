@@ -1,5 +1,5 @@
-# Dockerfile para Angular con configuración corregida
-FROM node:20-alpine as build
+# Dockerfile para Angular con rutas corregidas
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -34,8 +34,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Crear directorio correcto según nginx.conf
 RUN mkdir -p /var/www/html
 
-# Copiar todos los archivos del build a la ubicación correcta
-COPY --from=build /app/dist/ /var/www/html/
+# Copiar archivos del build desde la ubicación correcta (proyecto/browser)
+COPY --from=build /app/dist/proyecto/browser/ /var/www/html/
 
 # Verificar archivos copiados
 RUN echo "=== ARCHIVOS EN /var/www/html ===" && \
